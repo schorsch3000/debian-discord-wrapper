@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+function check_dep() {
+	if ! command -v "$1" &>/dev/null; then
+		echo "Command $1 could not be found" 1>&2
+		exit 1
+	fi
+}
+
+check_dep curl
+check_dep grep
+check_dep sed
+check_dep tr
+check_dep dpkg
+check_dep awk
+
+DOWNLOAD_URL="$(curl -X HEAD -v https://discordapp.com/api/download?platform=linux 2>&1 | grep -i "^< location: " | sed 's/< location: //i' | tr -d '\r')"
+
+LIVE_VERSION="$(basename "${DOWNLOAD_URL}" .deb | sed 's/discord-//i')"
+
+CURRENT_VERSION="NONE"
+
+command -v discord &>/dev/null && CURRENT_VERSION="$(dpkg -l discord | grep -i '^ii' | awk '{print $3}')"
+
+if [[ "${LIVE_VERSION}" != "${CURRENT_VERSION}" ]]; then
+	echo "New version available: ${LIVE_VERSION}"
+	echo "Current version: ${CURRENT_VERSION}"
+	echo "Downloading..."
+	curl -L "${DOWNLOAD_URL}" -o /tmp/discord.deb
+	echo "Installing..."
+	"$TERMINAL" -e sh -c 'echo We need to install a new discord version ; echo we will use sudo to install the .deb ; sudo dpkg -i /tmp/discord.deb'
+	rm /tmp/discord.deb
+	echo "Done!"
+else
+	echo "No new version available"
+fi
+
+/bin/discord "$@" &>/dev/null &
